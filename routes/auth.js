@@ -14,15 +14,16 @@ router.post("/createuser", [
     body("password", "Password must be atleast 5 characters").isLength({ min: 5 })
   ], async (req, res) => {
     // If there are any errors, return Bad request and the errors
+    let success = false;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({success, errors: errors.array() });
     }
     // Check whether the user with this email exists already
     try {
       let user = await User.findOne({ email: req.body.email });
       if (user) {
-        return res.status(400).json({ error: "Sorry a user with this email already exists" });
+        return res.status(400).json({success, error: "Sorry a user with this email already exists" });
       }
       const salt = await bcrypt.genSalt(10);
       const encryptPassword = await bcrypt.hash(req.body.password, salt);
@@ -35,10 +36,11 @@ router.post("/createuser", [
         user: {id: user.id}
       };
       const authToken = jwt.sign(data, JWT_SECRET);
-      res.json({authToken});
+      success = true;
+      res.json({success, authToken});
     } catch (error) {
       console.error(error.message);
-      res.status(500).send("Internal server error");
+      res.status(500).json({success}).send("Internal server error");
     }
   });
 
@@ -47,43 +49,46 @@ router.post("/login", [
     body("email", "Enter a valid email").isEmail(),
     body("password", "Password must be atleast 5 characters").isLength({ min: 5 })
   ], async (req, res) => {
+    let success = false;
     // if there are any errors return bad requests and the errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({success, errors: errors.array() });
     }
     const {email, password} = req.body;
     try {
       const user = await User.findOne({email});
       if (!user)    {
-        return res.status(400).json({ error: "Invalid username or password" });
+        return res.status(400).json({success, error: "Invalid username or password" });
       }
-
       const passwordCompare = await bcrypt.compare(password, user.password);
       if (!passwordCompare) {
-        return res.status(400).json({ error: "Invalid username or password" });
+        return res.status(400).json({success, error: "Invalid username or password" });
       }
       const data = {
         user: {id: user.id}
       };
       const authToken = jwt.sign(data, JWT_SECRET);
-      res.json({authToken});
+      success = true;
+      res.json({success, authToken});
     } catch(error)  {
       console.error(error.message);
-      res.status(500).send("Internal server error");
+      res.status(500).json({success}).send("Internal server error");
     }
   }
 );
 
 // Get logged in user details using : POST "/api/auth/getDetails" Login is required
 router.get("/getuser", fetchuser, async (req, res) => {
+    let success = false;
     try {
       userId = req.user.id;
       const user = await User.findById(userId).select("-password");
-      res.json(user);
+      success = true;
+      res.json({success, user});
     } catch (error) {
       console.error(error.message);
-      res.status(500).send("Internal server error");
+      res.status(500).json({success}).send("Internal server error");
     }
   }
 );
